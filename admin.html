@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>商品图库 - 后台管理</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cos-js-sdk-v5/dist/cos-js-sdk-v5.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #f5f5f7;
+            --bg-card: #ffffff;
+            --bg-dark: #1d1d1f;
+            --text-primary: #1d1d1f;
+            --text-secondary: #6e6e73;
+            --text-muted: #999;
+            --accent: #0071e3;
+            --accent-hover: #0077ed;
+            --danger: #ff3b30;
+            --success: #34c759;
+            --warning: #ff9500;
+            --border: #d2d2d7;
+            --border-light: #e8e8ed;
+            --shadow: 0 4px 20px rgba(0,0,0,0.08);
+            --radius: 12px;
+            --radius-lg: 16px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            font-size: 14px;
+        }
+
+        /* Mobile Header */
+        .mobile-header {
+            display: none;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-light);
+            padding: 12px 16px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .mobile-header h1 {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .mobile-menu-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: var(--bg-primary);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mobile-menu-btn svg {
+            width: 22px;
+            height: 22px;
+            stroke: var(--text-primary);
+        }
+
+        /* Mobile Nav Overlay */
+        .mobile-nav-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 300;
+        }
+
+        .mobile-nav-overlay.active { display: block; }
+
+        .mobile-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 280px;
+            height: 100%;
+            background: var(--bg-card);
+            z-index: 301;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+            padding: 20px 0;
+        }
+
+        .mobile-nav-overlay.active .mobile-nav {
+            transform: translateX(0);
+        }
+
+        .mobile-nav-header {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid var(--border-light);
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .mobile-nav-header h2 {
+            font-size: 1.2rem;
+        }
+
+        .mobile-nav-close {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--bg-primary);
+            border: none;
+            cursor: pointer;
+        }
+
+        /* Layout */
+        .app { display: flex; min-height: 100vh; }
+
+        /* Sidebar */
+        .sidebar {
+            width: 220px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border-light);
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .sidebar-logo {
+            padding: 0 20px 20px;
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-light);
+            margin-bottom: 12px;
+        }
+
+        .sidebar-nav { list-style: none; }
+
+        .nav-item {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .nav-item:hover {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: rgba(0, 113, 227, 0.1);
+            color: var(--accent);
+        }
+
+        .nav-item svg { width: 18px; height: 18px; stroke: currentColor; }
+
+        /* Main Content */
+        .main {
+            flex: 1;
+            margin-left: 220px;
+            padding: 24px;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .page-title { font-size: 1.5rem; font-weight: 600; }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .btn svg { width: 16px; height: 16px; }
+
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { background: var(--accent-hover); }
+
+        .btn-secondary {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+        .btn-secondary:hover { background: var(--border-light); }
+
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover { opacity: 0.9; }
+
+        .btn-sm { padding: 6px 10px; font-size: 0.8rem; }
+        .btn-icon { padding: 8px; }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Config Grid */
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 14px;
+        }
+
+        .form-group { margin-bottom: 14px; }
+        .form-group:last-child { margin-bottom: 0; }
+
+        .form-label {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.1);
+        }
+
+        .form-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+
+        .form-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .form-row .form-group { flex: 1; margin-bottom: 0; }
+
+        /* Upload Area */
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 36px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--bg-primary);
+        }
+
+        .upload-area:hover, .upload-area.dragover {
+            border-color: var(--accent);
+            background: rgba(0, 113, 227, 0.05);
+        }
+
+        .upload-area svg {
+            width: 40px;
+            height: 40px;
+            stroke: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .upload-area h3 { font-size: 0.95rem; color: var(--text-primary); margin-bottom: 6px; }
+        .upload-area p { font-size: 0.8rem; color: var(--text-muted); }
+
+        /* Category Manager */
+        .category-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .category-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: var(--bg-primary);
+            border-radius: 50px;
+            font-size: 0.85rem;
+        }
+
+        .category-tag .delete-btn {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--border);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .category-tag .delete-btn:hover { background: var(--danger); color: white; }
+        .category-tag .delete-btn svg { width: 10px; height: 10px; }
+
+        .add-category { display: flex; gap: 8px; }
+        .add-category input { flex: 1; }
+
+        /* Image Grid */
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+        }
+
+        .image-item {
+            position: relative;
+            border-radius: var(--radius);
+            overflow: hidden;
+            background: var(--bg-primary);
+            aspect-ratio: 1;
+        }
+
+        .image-item img { width: 100%; height: 100%; object-fit: cover; }
+
+        .image-item.selected { outline: 3px solid var(--accent); }
+
+        .image-item .checkbox {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.9);
+            border: 2px solid var(--border);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            z-index: 2;
+        }
+
+        .image-item.selected .checkbox {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .image-item.selected .checkbox::after {
+            content: '✓';
+            color: white;
+            font-size: 12px;
+        }
+
+        .image-item .badges {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            z-index: 2;
+        }
+
+        .image-item .status-badge {
+            padding: 3px 8px;
+            border-radius: 50px;
+            font-size: 0.65rem;
+            font-weight: 500;
+        }
+
+        .status-badge.sold { background: rgba(0,0,0,0.7); color: white; }
+        .status-badge.hidden { background: #666; color: white; }
+        .status-badge.pinned { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; }
+
+        .image-item .actions {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 8px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.7));
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+            flex-wrap: wrap;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .image-item:hover .actions, .image-item:active .actions { opacity: 1; }
+
+        .image-item .action-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.9);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .image-item .action-btn:hover { transform: scale(1.1); }
+        .image-item .action-btn svg { width: 14px; height: 14px; }
+        .image-item .action-btn.active { background: var(--warning); }
+        .image-item .action-btn.active svg { stroke: white; }
+
+        /* Bulk Actions */
+        .bulk-actions {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: var(--bg-dark);
+            color: white;
+            border-radius: var(--radius);
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .bulk-actions.show { display: flex; }
+        .bulk-actions span { font-size: 0.85rem; }
+        .bulk-actions .btn { padding: 6px 12px; font-size: 0.8rem; }
+
+        /* Filter Bar */
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .filter-bar select {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            background: var(--bg-card);
+            cursor: pointer;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .modal {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 900px;
+            max-height: 90vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 { font-size: 1.1rem; font-weight: 600; }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--bg-primary);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover { background: var(--border-light); }
+
+        .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1px solid var(--border-light);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        /* Editor */
+        .editor-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .editor-canvas-wrap {
+            background: #e5e5e5;
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 300px;
+            position: relative;
+            overflow: auto;
+        }
+
+        .editor-canvas-wrap canvas { max-width: 100%; border-radius: 8px; }
+
+        .editor-tools {
+            background: var(--bg-primary);
+            border-radius: var(--radius);
+            padding: 16px;
+        }
+
+        .tool-section { margin-bottom: 16px; }
+        .tool-section:last-child { margin-bottom: 0; }
+
+        .tool-section h4 {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tool-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+        .tool-btn {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .tool-btn:hover { border-color: var(--accent); }
+        .tool-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+        .tool-btn svg { width: 14px; height: 14px; }
+
+        .color-picker { display: flex; gap: 6px; flex-wrap: wrap; }
+
+        .color-option {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .color-option:hover, .color-option.active {
+            transform: scale(1.1);
+            border-color: var(--text-primary);
+        }
+
+        .size-slider { width: 100%; margin-top: 6px; }
+
+        .preset-stamps { display: flex; flex-wrap: wrap; gap: 6px; }
+
+        .stamp-btn {
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .stamp-btn:hover { border-color: var(--accent); background: rgba(0, 113, 227, 0.05); }
+        .stamp-btn.sold { color: var(--danger); }
+
+        /* Upload Progress */
+        .upload-progress { margin-top: 16px; }
+
+        .progress-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            margin-bottom: 6px;
+        }
+
+        .progress-item img { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; }
+
+        .progress-item .info { flex: 1; min-width: 0; }
+        .progress-item .name { font-size: 0.85rem; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .progress-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+        .progress-bar .fill { height: 100%; background: var(--accent); transition: width 0.3s; }
+
+        .progress-item .status { font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; }
+        .progress-item .status.success { color: var(--success); }
+        .progress-item .status.error { color: var(--danger); }
+
+        /* Login Page */
+        .login-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+
+        .login-box {
+            background: white;
+            padding: 36px;
+            border-radius: var(--radius-lg);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 360px;
+        }
+
+        .login-box h1 { font-size: 1.3rem; margin-bottom: 6px; text-align: center; }
+        .login-box p { color: var(--text-secondary); text-align: center; margin-bottom: 24px; font-size: 0.85rem; }
+        .login-box .form-group { margin-bottom: 16px; }
+        .login-box .btn { width: 100%; padding: 12px; font-size: 0.95rem; }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 12px 20px;
+            background: var(--bg-dark);
+            color: white;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            z-index: 2000;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+        }
+
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 48px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state svg { width: 56px; height: 56px; margin-bottom: 14px; stroke: var(--border); }
+
+        /* ========== MOBILE STYLES ========== */
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; padding: 16px; }
+            .mobile-header { display: flex; }
+
+            .page-header { margin-bottom: 16px; }
+            .page-title { font-size: 1.2rem; }
+
+            .image-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+
+            .image-item .actions { opacity: 1; padding: 6px; }
+            .image-item .action-btn { width: 28px; height: 28px; }
+            .image-item .action-btn svg { width: 12px; height: 12px; }
+
+            .card { padding: 16px; }
+            .card-title { font-size: 0.95rem; }
+
+            .modal { max-height: 95vh; }
+            .modal-body { padding: 16px; }
+
+            .editor-canvas-wrap { min-height: 250px; }
+
+            .btn { padding: 8px 12px; font-size: 0.8rem; }
+
+            .bulk-actions { padding: 10px 12px; gap: 8px; }
+            .bulk-actions .btn { padding: 5px 8px; font-size: 0.75rem; }
+
+            .filter-bar select { padding: 6px 10px; font-size: 0.8rem; }
+
+            .config-grid { grid-template-columns: 1fr; }
+
+            .toast { bottom: 16px; right: 16px; left: 16px; text-align: center; }
+
+            .upload-area { padding: 24px 16px; }
+            .upload-area svg { width: 32px; height: 32px; }
+            .upload-area h3 { font-size: 0.9rem; }
+
+            .form-row { flex-direction: column; }
+        }
+
+        @media (max-width: 400px) {
+            .image-grid { grid-template-columns: repeat(3, 1fr); }
+            .header-actions { width: 100%; }
+            .header-actions .btn { flex: 1; justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Page -->
+    <div class="login-page" id="loginPage">
+        <div class="login-box">
+            <h1>商品图库管理</h1>
+            <p>请输入管理密码</p>
+            <div class="form-group">
+                <input type="password" class="form-input" id="loginPassword" placeholder="管理密码" onkeypress="if(event.key==='Enter')login()">
+            </div>
+            <button class="btn btn-primary" onclick="login()">登 录</button>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div class="app" id="mainApp" style="display: none;">
+        <!-- Mobile Header -->
+        <header class="mobile-header">
+            <button class="mobile-menu-btn" onclick="openMobileNav()">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
+            <h1>商品图库</h1>
+            <div style="width:40px;"></div>
+        </header>
+
+        <!-- Mobile Nav Overlay -->
+        <div class="mobile-nav-overlay" id="mobileNavOverlay" onclick="closeMobileNav()">
+            <nav class="mobile-nav" onclick="event.stopPropagation()">
+                <div class="mobile-nav-header">
+                    <h2>菜单</h2>
+                    <button class="mobile-nav-close" onclick="closeMobileNav()">✕</button>
+                </div>
+                <ul class="sidebar-nav">
+                    <li class="nav-item active" data-page="images" onclick="switchPage('images');closeMobileNav();">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                        图片管理
+                    </li>
+                    <li class="nav-item" data-page="categories" onclick="switchPage('categories');closeMobileNav();">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
+                        分类管理
+                    </li>
+                    <li class="nav-item" data-page="settings" onclick="switchPage('settings');closeMobileNav();">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                        系统设置
+                    </li>
+                </ul>
+            </nav>
+        </div>
+
+        <!-- Sidebar (Desktop) -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">商品图库</div>
+            <nav>
+                <ul class="sidebar-nav">
+                    <li class="nav-item active" data-page="images" onclick="switchPage('images')">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                        图片管理
+                    </li>
+                    <li class="nav-item" data-page="categories" onclick="switchPage('categories')">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
+                        分类管理
+                    </li>
+                    <li class="nav-item" data-page="settings" onclick="switchPage('settings')">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                        系统设置
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Images Page -->
+            <div class="page" id="page-images">
+                <div class="page-header">
+                    <h1 class="page-title">图片管理</h1>
+                    <div class="header-actions">
+                        <button class="btn btn-secondary" onclick="refreshData()">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                            刷新
+                        </button>
+                        <button class="btn btn-primary" onclick="openUploadModal()">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                            上传图片
+                        </button>
+                    </div>
+                </div>
+
+                <div class="filter-bar">
+                    <select id="filterCategory" onchange="filterImages()">
+                        <option value="all">全部分类</option>
+                    </select>
+                    <select id="filterStatus" onchange="filterImages()">
+                        <option value="all">全部状态</option>
+                        <option value="active">在售</option>
+                        <option value="sold">已售</option>
+                        <option value="hidden">已下架</option>
+                    </select>
+                </div>
+
+                <div class="bulk-actions" id="bulkActions">
+                    <span>已选 <strong id="selectedCount">0</strong> 张</span>
+                    <button class="btn btn-secondary btn-sm" onclick="bulkPin()">置顶</button>
+                    <button class="btn btn-secondary btn-sm" onclick="bulkUnpin()">取消置顶</button>
+                    <button class="btn btn-secondary btn-sm" onclick="bulkSetSold()">标记已售</button>
+                    <button class="btn btn-secondary btn-sm" onclick="bulkHide()">下架</button>
+                    <button class="btn btn-danger btn-sm" onclick="bulkDelete()">删除</button>
+                    <button class="btn btn-secondary btn-sm" onclick="clearSelection()">取消</button>
+                </div>
+
+                <div class="image-grid" id="imageGrid">
+                    <div class="empty-state">
+                        <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg>
+                        <p>暂无图片，点击上方按钮上传</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Categories Page -->
+            <div class="page" id="page-categories" style="display: none;">
+                <div class="page-header">
+                    <h1 class="page-title">分类管理</h1>
+                </div>
+                <div class="card">
+                    <div class="card-title">商品分类</div>
+                    <div class="category-list" id="categoryList"></div>
+                    <div class="add-category">
+                        <input type="text" class="form-input" id="newCategoryName" placeholder="输入分类名称" onkeypress="if(event.key==='Enter')addCategory()">
+                        <button class="btn btn-primary" onclick="addCategory()">添加</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Page -->
+            <div class="page" id="page-settings" style="display: none;">
+                <div class="page-header">
+                    <h1 class="page-title">系统设置</h1>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">📢 首页公告</div>
+                    <div class="form-group">
+                        <label class="form-label">公告内容（留空则不显示）</label>
+                        <input type="text" class="form-input" id="announcementText" placeholder="例如：春节期间正常发货，下单即送好礼！">
+                    </div>
+                    <button class="btn btn-primary" onclick="saveSettings()">保存公告</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">🔥 上新设置</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">最近N天内算"新品"</label>
+                            <input type="number" class="form-input" id="newDays" min="1" max="30" value="3">
+                            <p class="form-hint">上新专区会显示这N天内上传的图片</p>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="saveSettings()">保存设置</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">☁️ 腾讯云COS配置</div>
+                    <div class="config-grid">
+                        <div class="form-group">
+                            <label class="form-label">Bucket名称</label>
+                            <input type="text" class="form-input" id="cosBucket" placeholder="例如: my-bucket-1250000000">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">所属地域</label>
+                            <input type="text" class="form-input" id="cosRegion" placeholder="例如: ap-guangzhou">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">SecretId</label>
+                            <input type="text" class="form-input" id="cosSecretId" placeholder="API密钥ID">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">SecretKey</label>
+                            <input type="password" class="form-input" id="cosSecretKey" placeholder="API密钥Key">
+                        </div>
+                    </div>
+                    <div style="margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="saveConfig()">保存配置</button>
+                        <button class="btn btn-secondary" onclick="testConnection()">测试连接</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">🔐 管理密码</div>
+                    <div class="form-group">
+                        <label class="form-label">设置新密码</label>
+                        <input type="password" class="form-input" id="newPassword" placeholder="留空则不修改" style="max-width: 280px;">
+                    </div>
+                    <button class="btn btn-primary" onclick="changePassword()">修改密码</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">🔗 前端页面链接</div>
+                    <p style="color: var(--text-secondary); margin-bottom: 10px; font-size: 0.85rem;">将此链接发送到微信群：</p>
+                    <div class="form-row">
+                        <input type="text" class="form-input" id="frontendUrl" readonly>
+                        <button class="btn btn-secondary" onclick="copyFrontendUrl()">复制</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Upload Modal -->
+    <div class="modal-overlay" id="uploadModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>上传图片</h2>
+                <button class="modal-close" onclick="closeUploadModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">选择分类</label>
+                    <select class="form-input" id="uploadCategory">
+                        <option value="">未分类</option>
+                    </select>
+                </div>
+                <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                    <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+                    <h3>点击或拖拽图片到这里</h3>
+                    <p>支持 JPG、PNG、GIF，可批量上传</p>
+                </div>
+                <input type="file" id="fileInput" multiple accept="image/*" style="display:none;" onchange="handleFileSelect(event)">
+                <div class="upload-progress" id="uploadProgress"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Editor Modal -->
+    <div class="modal-overlay" id="editorModal">
+        <div class="modal" style="max-width: 1100px;">
+            <div class="modal-header">
+                <h2>编辑图片</h2>
+                <button class="modal-close" onclick="closeEditor()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="editor-layout">
+                    <div class="editor-canvas-wrap">
+                        <canvas id="editorCanvas"></canvas>
+                    </div>
+                    <div class="editor-tools">
+                        <div class="tool-section">
+                            <h4>工具</h4>
+                            <div class="tool-row">
+                                <button class="tool-btn" id="toolSelect" onclick="setTool('select')">✋ 选择</button>
+                                <button class="tool-btn" id="toolDraw" onclick="setTool('draw')">✏️ 画笔</button>
+                                <button class="tool-btn" id="toolText" onclick="setTool('text')">T 文字</button>
+                            </div>
+                        </div>
+                        <div class="tool-section">
+                            <h4>颜色</h4>
+                            <div class="color-picker">
+                                <div class="color-option active" style="background:#ff3b30;" data-color="#ff3b30" onclick="setColor(this)"></div>
+                                <div class="color-option" style="background:#ff9500;" data-color="#ff9500" onclick="setColor(this)"></div>
+                                <div class="color-option" style="background:#34c759;" data-color="#34c759" onclick="setColor(this)"></div>
+                                <div class="color-option" style="background:#007aff;" data-color="#007aff" onclick="setColor(this)"></div>
+                                <div class="color-option" style="background:#000000;" data-color="#000000" onclick="setColor(this)"></div>
+                                <div class="color-option" style="background:#ffffff; border:1px solid #ddd;" data-color="#ffffff" onclick="setColor(this)"></div>
+                            </div>
+                        </div>
+                        <div class="tool-section">
+                            <h4>画笔大小</h4>
+                            <input type="range" class="size-slider" id="brushSize" min="2" max="30" value="5" onchange="setBrushSize(this.value)">
+                        </div>
+                        <div class="tool-section">
+                            <h4>快捷标记</h4>
+                            <div class="preset-stamps">
+                                <button class="stamp-btn sold" onclick="addSoldStamp()">🚫 已售罄</button>
+                                <button class="stamp-btn" onclick="addReservedStamp()">📌 已预定</button>
+                                <button class="stamp-btn" onclick="addCrossLine()">✕ 删除线</button>
+                                <button class="stamp-btn" onclick="addCircle()">○ 圈选</button>
+                            </div>
+                        </div>
+                        <div class="tool-section">
+                            <h4>操作</h4>
+                            <div class="tool-row">
+                                <button class="tool-btn" onclick="editorUndo()">↩ 撤销</button>
+                                <button class="tool-btn" onclick="editorClear()">🗑 清除</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeEditor()">取消</button>
+                <button class="btn btn-primary" onclick="saveEdit()">保存修改</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let CONFIG = { bucket: '', region: '', secretId: '', secretKey: '', password: 'admin123' };
+        let cosClient = null;
+        let appData = { categories: [], images: [], settings: { newDays: 3, announcement: '' } };
+        let selectedImages = new Set();
+        let fabricCanvas = null;
+        let currentEditingImage = null;
+        let currentTool = 'select';
+        let currentColor = '#ff3b30';
+        let historyStack = [];
+
+        document.addEventListener('DOMContentLoaded', () => { loadConfig(); setupUploadArea(); });
+
+        // Mobile Nav
+        function openMobileNav() { document.getElementById('mobileNavOverlay').classList.add('active'); }
+        function closeMobileNav() { document.getElementById('mobileNavOverlay').classList.remove('active'); }
+
+        // Login
+        function login() {
+            const password = document.getElementById('loginPassword').value;
+            if (password === CONFIG.password) {
+                document.getElementById('loginPage').style.display = 'none';
+                document.getElementById('mainApp').style.display = 'flex';
+                initApp();
+            } else { showToast('密码错误', 'error'); }
+        }
+
+        function initApp() {
+            document.getElementById('cosBucket').value = CONFIG.bucket;
+            document.getElementById('cosRegion').value = CONFIG.region;
+            document.getElementById('cosSecretId').value = CONFIG.secretId;
+            document.getElementById('cosSecretKey').value = CONFIG.secretKey;
+            if (CONFIG.bucket && CONFIG.region && CONFIG.secretId && CONFIG.secretKey) { initCOS(); loadData(); }
+            updateFrontendUrl();
+        }
+
+        // Config
+        function loadConfig() {
+            const saved = localStorage.getItem('imageShelfAdminConfig');
+            if (saved) { CONFIG = { ...CONFIG, ...JSON.parse(saved) }; }
+        }
+
+        function saveConfig() {
+            CONFIG.bucket = document.getElementById('cosBucket').value.trim();
+            CONFIG.region = document.getElementById('cosRegion').value.trim();
+            CONFIG.secretId = document.getElementById('cosSecretId').value.trim();
+            CONFIG.secretKey = document.getElementById('cosSecretKey').value.trim();
+            localStorage.setItem('imageShelfAdminConfig', JSON.stringify(CONFIG));
+            const cosBaseUrl = `https://${CONFIG.bucket}.cos.${CONFIG.region}.myqcloud.com`;
+            localStorage.setItem('imageShelfConfig', JSON.stringify({ cosBaseUrl }));
+            initCOS();
+            showToast('配置已保存', 'success');
+            updateFrontendUrl();
+        }
+
+        function saveSettings() {
+            appData.settings = appData.settings || {};
+            appData.settings.announcement = document.getElementById('announcementText').value.trim();
+            appData.settings.newDays = parseInt(document.getElementById('newDays').value) || 3;
+            saveData();
+            showToast('设置已保存', 'success');
+        }
+
+        function changePassword() {
+            const newPwd = document.getElementById('newPassword').value.trim();
+            if (newPwd) {
+                CONFIG.password = newPwd;
+                localStorage.setItem('imageShelfAdminConfig', JSON.stringify(CONFIG));
+                showToast('密码已修改', 'success');
+                document.getElementById('newPassword').value = '';
+            }
+        }
+
+        function updateFrontendUrl() {
+            const url = window.location.href.replace('admin.html', 'index.html');
+            document.getElementById('frontendUrl').value = url;
+        }
+
+        function copyFrontendUrl() {
+            const url = document.getElementById('frontendUrl').value;
+            navigator.clipboard.writeText(url).then(() => showToast('链接已复制', 'success'));
+        }
+
+        // COS
+        function initCOS() {
+            if (!CONFIG.bucket || !CONFIG.secretId || !CONFIG.secretKey) return;
+            cosClient = new COS({ SecretId: CONFIG.secretId, SecretKey: CONFIG.secretKey });
+        }
+
+        async function testConnection() {
+            if (!cosClient) { showToast('请先填写配置', 'error'); return; }
+            try {
+                await new Promise((resolve, reject) => {
+                    cosClient.headBucket({ Bucket: CONFIG.bucket, Region: CONFIG.region }, (err, data) => { if (err) reject(err); else resolve(data); });
+                });
+                showToast('连接成功！', 'success');
+            } catch (error) { showToast('连接失败: ' + error.message, 'error'); }
+        }
+
+        async function loadData() {
+            if (!cosClient) return;
+            try {
+                const data = await cosGetObject('data.json');
+                appData = JSON.parse(data);
+                appData.settings = appData.settings || { newDays: 3, announcement: '' };
+                document.getElementById('announcementText').value = appData.settings.announcement || '';
+                document.getElementById('newDays').value = appData.settings.newDays || 3;
+                renderCategories();
+                renderImages();
+                updateCategorySelects();
+            } catch (error) {
+                if (error.statusCode === 404) {
+                    appData = { categories: [], images: [], settings: { newDays: 3, announcement: '' } };
+                    await saveData();
+                } else { console.error('加载数据失败:', error); }
+            }
+        }
+
+        async function saveData() {
+            if (!cosClient) return;
+            try { await cosPutObject('data.json', JSON.stringify(appData), 'application/json'); }
+            catch (error) { console.error('保存失败:', error); showToast('保存失败', 'error'); }
+        }
+
+        function cosGetObject(key) {
+            return new Promise((resolve, reject) => {
+                cosClient.getObject({ Bucket: CONFIG.bucket, Region: CONFIG.region, Key: key }, (err, data) => { if (err) reject(err); else resolve(data.Body); });
+            });
+        }
+
+        function cosPutObject(key, body, contentType = 'image/jpeg') {
+            return new Promise((resolve, reject) => {
+                cosClient.putObject({ Bucket: CONFIG.bucket, Region: CONFIG.region, Key: key, Body: body, ContentType: contentType }, (err, data) => { if (err) reject(err); else resolve(data); });
+            });
+        }
+
+        function cosDeleteObject(key) {
+            return new Promise((resolve, reject) => {
+                cosClient.deleteObject({ Bucket: CONFIG.bucket, Region: CONFIG.region, Key: key }, (err, data) => { if (err) reject(err); else resolve(data); });
+            });
+        }
+
+        function refreshData() { loadData(); showToast('已刷新', 'success'); }
+
+        // Pages
+        function switchPage(page) {
+            document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById(`page-${page}`).style.display = 'block';
+            document.querySelectorAll(`[data-page="${page}"]`).forEach(n => n.classList.add('active'));
+        }
+
+        // Categories
+        function renderCategories() {
+            const list = document.getElementById('categoryList');
+            list.innerHTML = appData.categories.map(cat => `
+                <div class="category-tag">${cat.name}
+                    <button class="delete-btn" onclick="deleteCategory('${cat.id}')"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+                </div>
+            `).join('');
+        }
+
+        function updateCategorySelects() {
+            const options = '<option value="">未分类</option>' + appData.categories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
+            document.getElementById('uploadCategory').innerHTML = options;
+            document.getElementById('filterCategory').innerHTML = '<option value="all">全部分类</option>' + appData.categories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
+        }
+
+        async function addCategory() {
+            const name = document.getElementById('newCategoryName').value.trim();
+            if (!name) return;
+            const id = 'cat_' + Date.now();
+            appData.categories.push({ id, name });
+            await saveData();
+            document.getElementById('newCategoryName').value = '';
+            renderCategories();
+            updateCategorySelects();
+            showToast('分类已添加', 'success');
+        }
+
+        async function deleteCategory(id) {
+            if (!confirm('确定删除此分类？')) return;
+            appData.categories = appData.categories.filter(c => c.id !== id);
+            appData.images.forEach(img => { if (img.category === id) img.category = ''; });
+            await saveData();
+            renderCategories();
+            updateCategorySelects();
+            renderImages();
+            showToast('分类已删除', 'success');
+        }
+
+        // Images
+        function renderImages() {
+            const grid = document.getElementById('imageGrid');
+            const category = document.getElementById('filterCategory').value;
+            const status = document.getElementById('filterStatus').value;
+
+            let filtered = appData.images;
+            if (category !== 'all') filtered = filtered.filter(img => img.category === category);
+            if (status !== 'all') filtered = filtered.filter(img => img.status === status);
+
+            // Sort: pinned first, then by date
+            filtered.sort((a, b) => {
+                if (a.pinned && !b.pinned) return -1;
+                if (!a.pinned && b.pinned) return 1;
+                return new Date(b.createdAt) - new Date(a.createdAt);
+            });
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `<div class="empty-state"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg><p>暂无图片</p></div>`;
+                return;
+            }
+
+            grid.innerHTML = filtered.map(img => `
+                <div class="image-item ${selectedImages.has(img.id) ? 'selected' : ''}" data-id="${img.id}">
+                    <div class="checkbox" onclick="toggleSelect('${img.id}')"></div>
+                    <img src="${img.url}" alt="${img.name || ''}">
+                    <div class="badges">
+                        ${img.pinned ? '<span class="status-badge pinned">置顶</span>' : ''}
+                        ${img.status === 'sold' ? '<span class="status-badge sold">已售</span>' : ''}
+                        ${img.status === 'hidden' ? '<span class="status-badge hidden">下架</span>' : ''}
+                    </div>
+                    <div class="actions">
+                        <button class="action-btn ${img.pinned ? 'active' : ''}" onclick="togglePin('${img.id}')" title="置顶">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L12 22M12 2L5 9M12 2L19 9"/></svg>
+                        </button>
+                        <button class="action-btn" onclick="editImage('${img.id}')" title="编辑">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
+                        <button class="action-btn" onclick="toggleSold('${img.id}')" title="${img.sold ? '取消已售' : '标记已售'}">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">${img.sold ? '<path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>' : '<circle cx="12" cy="12" r="10"/><path d="M18 6L6 18"/>'}</svg>
+                        </button>
+                        <button class="action-btn" onclick="deleteImage('${img.id}')" title="删除">
+                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterImages() { renderImages(); }
+
+        function toggleSelect(id) {
+            if (selectedImages.has(id)) selectedImages.delete(id);
+            else selectedImages.add(id);
+            updateBulkActions();
+            renderImages();
+        }
+
+        function updateBulkActions() {
+            const bar = document.getElementById('bulkActions');
+            const count = selectedImages.size;
+            document.getElementById('selectedCount').textContent = count;
+            bar.classList.toggle('show', count > 0);
+        }
+
+        function clearSelection() { selectedImages.clear(); updateBulkActions(); renderImages(); }
+
+        async function togglePin(id) {
+            const img = appData.images.find(i => i.id === id);
+            if (img) { img.pinned = !img.pinned; await saveData(); renderImages(); }
+        }
+
+        async function toggleSold(id) {
+            const img = appData.images.find(i => i.id === id);
+            if (img) { img.sold = !img.sold; img.status = img.sold ? 'sold' : 'active'; await saveData(); renderImages(); }
+        }
+
+        async function deleteImage(id) {
+            if (!confirm('确定删除此图片？')) return;
+            const img = appData.images.find(i => i.id === id);
+            if (img) {
+                try { const key = img.url.split('.myqcloud.com/')[1]; if (key) await cosDeleteObject(key); } catch (e) {}
+                appData.images = appData.images.filter(i => i.id !== id);
+                await saveData();
+                renderImages();
+                showToast('已删除', 'success');
+            }
+        }
+
+        async function bulkPin() {
+            selectedImages.forEach(id => { const img = appData.images.find(i => i.id === id); if (img) img.pinned = true; });
+            await saveData(); clearSelection(); showToast('已置顶', 'success');
+        }
+
+        async function bulkUnpin() {
+            selectedImages.forEach(id => { const img = appData.images.find(i => i.id === id); if (img) img.pinned = false; });
+            await saveData(); clearSelection(); showToast('已取消置顶', 'success');
+        }
+
+        async function bulkSetSold() {
+            selectedImages.forEach(id => { const img = appData.images.find(i => i.id === id); if (img) { img.sold = true; img.status = 'sold'; } });
+            await saveData(); clearSelection(); showToast('已标记已售', 'success');
+        }
+
+        async function bulkHide() {
+            selectedImages.forEach(id => { const img = appData.images.find(i => i.id === id); if (img) img.status = 'hidden'; });
+            await saveData(); clearSelection(); showToast('已下架', 'success');
+        }
+
+        async function bulkDelete() {
+            if (!confirm(`确定删除选中的 ${selectedImages.size} 张图片？`)) return;
+            for (const id of selectedImages) {
+                const img = appData.images.find(i => i.id === id);
+                if (img) {
+                    try { const key = img.url.split('.myqcloud.com/')[1]; if (key) await cosDeleteObject(key); } catch (e) {}
+                    appData.images = appData.images.filter(i => i.id !== id);
+                }
+            }
+            await saveData(); clearSelection(); showToast('已删除', 'success');
+        }
+
+        // Upload
+        function setupUploadArea() {
+            const area = document.getElementById('uploadArea');
+            area.addEventListener('dragover', (e) => { e.preventDefault(); area.classList.add('dragover'); });
+            area.addEventListener('dragleave', () => { area.classList.remove('dragover'); });
+            area.addEventListener('drop', (e) => { e.preventDefault(); area.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+        }
+
+        function openUploadModal() { document.getElementById('uploadModal').classList.add('active'); document.getElementById('uploadProgress').innerHTML = ''; }
+        function closeUploadModal() { document.getElementById('uploadModal').classList.remove('active'); }
+        function handleFileSelect(e) { handleFiles(e.target.files); }
+
+        async function handleFiles(files) {
+            const category = document.getElementById('uploadCategory').value;
+            const progress = document.getElementById('uploadProgress');
+
+            for (const file of files) {
+                if (!file.type.startsWith('image/')) continue;
+                const id = 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                const ext = file.name.split('.').pop();
+                const key = `images/${id}.${ext}`;
+
+                const itemHtml = `<div class="progress-item" id="progress-${id}"><img src="${URL.createObjectURL(file)}" alt=""><div class="info"><div class="name">${file.name}</div><div class="progress-bar"><div class="fill" style="width: 0%"></div></div></div><span class="status">上传中...</span></div>`;
+                progress.insertAdjacentHTML('beforeend', itemHtml);
+
+                try {
+                    await new Promise((resolve, reject) => {
+                        cosClient.putObject({
+                            Bucket: CONFIG.bucket, Region: CONFIG.region, Key: key, Body: file,
+                            onProgress: (info) => { document.querySelector(`#progress-${id} .fill`).style.width = Math.round(info.percent * 100) + '%'; }
+                        }, (err, data) => { if (err) reject(err); else resolve(data); });
+                    });
+
+                    const url = `https://${CONFIG.bucket}.cos.${CONFIG.region}.myqcloud.com/${key}`;
+                    appData.images.unshift({ id, name: file.name, url, category, status: 'active', sold: false, pinned: false, createdAt: new Date().toISOString() });
+
+                    document.querySelector(`#progress-${id} .status`).textContent = '完成';
+                    document.querySelector(`#progress-${id} .status`).classList.add('success');
+                } catch (error) {
+                    document.querySelector(`#progress-${id} .status`).textContent = '失败';
+                    document.querySelector(`#progress-${id} .status`).classList.add('error');
+                    console.error('上传失败:', error);
+                }
+            }
+            await saveData();
+            renderImages();
+            showToast('上传完成', 'success');
+        }
+
+        // Editor
+        function editImage(id) {
+            currentEditingImage = appData.images.find(i => i.id === id);
+            if (!currentEditingImage) return;
+            document.getElementById('editorModal').classList.add('active');
+            setTimeout(() => initEditor(currentEditingImage.url), 100);
+        }
+
+        function initEditor(imageUrl) {
+            const canvasEl = document.getElementById('editorCanvas');
+            if (fabricCanvas) fabricCanvas.dispose();
+            fabricCanvas = new fabric.Canvas(canvasEl, { isDrawingMode: false });
+
+            fabric.Image.fromURL(imageUrl, (img) => {
+                const maxWidth = Math.min(600, window.innerWidth - 60);
+                const maxHeight = Math.min(400, window.innerHeight - 300);
+                let scale = 1;
+                if (img.width > maxWidth) scale = maxWidth / img.width;
+                if (img.height * scale > maxHeight) scale = maxHeight / img.height;
+
+                fabricCanvas.setWidth(img.width * scale);
+                fabricCanvas.setHeight(img.height * scale);
+                fabricCanvas.setBackgroundImage(img, fabricCanvas.renderAll.bind(fabricCanvas), { scaleX: scale, scaleY: scale });
+                historyStack = [];
+                saveHistory();
+            }, { crossOrigin: 'anonymous' });
+
+            fabricCanvas.freeDrawingBrush.color = currentColor;
+            fabricCanvas.freeDrawingBrush.width = 5;
+            setTool('select');
+        }
+
+        function setTool(tool) {
+            currentTool = tool;
+            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+            const btn = document.getElementById(`tool${tool.charAt(0).toUpperCase() + tool.slice(1)}`);
+            if (btn) btn.classList.add('active');
+            fabricCanvas.isDrawingMode = (tool === 'draw');
+            if (tool === 'text') fabricCanvas.on('mouse:down', addTextOnClick);
+            else fabricCanvas.off('mouse:down', addTextOnClick);
+        }
+
+        function addTextOnClick(e) {
+            if (currentTool !== 'text') return;
+            const pointer = fabricCanvas.getPointer(e.e);
+            const text = new fabric.IText('双击编辑', { left: pointer.x, top: pointer.y, fontFamily: 'Noto Sans SC, sans-serif', fontSize: 24, fill: currentColor, fontWeight: 'bold' });
+            fabricCanvas.add(text);
+            fabricCanvas.setActiveObject(text);
+            text.enterEditing();
+            saveHistory();
+        }
+
+        function setColor(el) {
+            currentColor = el.dataset.color;
+            document.querySelectorAll('.color-option').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+            if (fabricCanvas) {
+                fabricCanvas.freeDrawingBrush.color = currentColor;
+                const active = fabricCanvas.getActiveObject();
+                if (active) {
+                    if (active.type === 'i-text' || active.type === 'text') active.set('fill', currentColor);
+                    else active.set('stroke', currentColor);
+                    fabricCanvas.renderAll();
+                }
+            }
+        }
+
+        function setBrushSize(size) { if (fabricCanvas) fabricCanvas.freeDrawingBrush.width = parseInt(size); }
+
+        function addSoldStamp() {
+            const text = new fabric.Text('已售罄', { left: fabricCanvas.width / 2, top: fabricCanvas.height / 2, originX: 'center', originY: 'center', fontFamily: 'Noto Sans SC, sans-serif', fontSize: 50, fill: '#ff3b30', fontWeight: 'bold', angle: -15, opacity: 0.9 });
+            const rect = new fabric.Rect({ left: fabricCanvas.width / 2, top: fabricCanvas.height / 2, originX: 'center', originY: 'center', width: text.width + 30, height: text.height + 15, fill: 'transparent', stroke: '#ff3b30', strokeWidth: 4, angle: -15, rx: 6, ry: 6 });
+            const group = new fabric.Group([rect, text], { left: fabricCanvas.width / 2, top: fabricCanvas.height / 2, originX: 'center', originY: 'center' });
+            fabricCanvas.add(group);
+            saveHistory();
+        }
+
+        function addReservedStamp() {
+            const text = new fabric.Text('已预定', { left: fabricCanvas.width / 2, top: fabricCanvas.height / 2, originX: 'center', originY: 'center', fontFamily: 'Noto Sans SC, sans-serif', fontSize: 40, fill: '#ff9500', fontWeight: 'bold', angle: -15 });
+            fabricCanvas.add(text);
+            saveHistory();
+        }
+
+        function addCrossLine() {
+            const line1 = new fabric.Line([0, 0, fabricCanvas.width, fabricCanvas.height], { stroke: currentColor, strokeWidth: 6, opacity: 0.8 });
+            const line2 = new fabric.Line([fabricCanvas.width, 0, 0, fabricCanvas.height], { stroke: currentColor, strokeWidth: 6, opacity: 0.8 });
+            fabricCanvas.add(line1, line2);
+            saveHistory();
+        }
+
+        function addCircle() {
+            const circle = new fabric.Circle({ left: fabricCanvas.width / 2, top: fabricCanvas.height / 2, originX: 'center', originY: 'center', radius: 60, fill: 'transparent', stroke: currentColor, strokeWidth: 4 });
+            fabricCanvas.add(circle);
+            fabricCanvas.setActiveObject(circle);
+            saveHistory();
+        }
+
+        function saveHistory() { historyStack.push(JSON.stringify(fabricCanvas.toJSON())); if (historyStack.length > 20) historyStack.shift(); }
+
+        function editorUndo() {
+            if (historyStack.length > 1) {
+                historyStack.pop();
+                fabricCanvas.loadFromJSON(historyStack[historyStack.length - 1], () => fabricCanvas.renderAll());
+            }
+        }
+
+        function editorClear() { fabricCanvas.getObjects().forEach(obj => fabricCanvas.remove(obj)); fabricCanvas.renderAll(); saveHistory(); }
+
+        function closeEditor() {
+            document.getElementById('editorModal').classList.remove('active');
+            if (fabricCanvas) { fabricCanvas.dispose(); fabricCanvas = null; }
+            currentEditingImage = null;
+        }
+
+        async function saveEdit() {
+            if (!fabricCanvas || !currentEditingImage) return;
+            showToast('保存中...', '');
+            try {
+                const dataUrl = fabricCanvas.toDataURL({ format: 'jpeg', quality: 0.9, multiplier: 1 / fabricCanvas.getZoom() });
+                const response = await fetch(dataUrl);
+                const blob = await response.blob();
+                const key = currentEditingImage.url.split('.myqcloud.com/')[1].split('?')[0];
+                await cosPutObject(key, blob, 'image/jpeg');
+                currentEditingImage.url = `https://${CONFIG.bucket}.cos.${CONFIG.region}.myqcloud.com/${key}?t=${Date.now()}`;
+                await saveData();
+                closeEditor();
+                renderImages();
+                showToast('保存成功', 'success');
+            } catch (error) { console.error('保存失败:', error); showToast('保存失败', 'error'); }
+        }
+
+        function showToast(message, type = '') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast show ' + type;
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+    </script>
+</body>
+</html>

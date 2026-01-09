@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商品图库</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #fafafa;
+            --bg-card: #ffffff;
+            --text-primary: #1a1a1a;
+            --text-secondary: #666666;
+            --text-muted: #999999;
+            --accent: #ff6b6b;
+            --accent-hover: #ff5252;
+            --accent-light: #fff0f0;
+            --new-tag: #ff9500;
+            --border: #eaeaea;
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+            --shadow-md: 0 8px 30px rgba(0,0,0,0.12);
+            --shadow-lg: 0 20px 60px rgba(0,0,0,0.15);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Announcement Bar */
+        .announcement {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            text-align: center;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .announcement.show {
+            display: block;
+        }
+
+        .announcement-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .announcement-icon {
+            font-size: 1.1rem;
+        }
+
+        .announcement-text {
+            font-weight: 400;
+        }
+
+        /* Header */
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(250, 250, 250, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+        }
+
+        .header-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.5px;
+        }
+
+        .logo span {
+            color: var(--accent);
+        }
+
+        /* Category Filter */
+        .category-bar {
+            padding: 14px 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .category-list {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            list-style: none;
+        }
+
+        .category-item {
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 50px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 400;
+        }
+
+        .category-item:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .category-item.active {
+            background: var(--text-primary);
+            border-color: var(--text-primary);
+            color: white;
+        }
+
+        /* New Arrivals Section */
+        .new-arrivals {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 24px 20px;
+            display: none;
+        }
+
+        .new-arrivals.show {
+            display: block;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title .icon {
+            width: 22px;
+            height: 22px;
+            background: var(--new-tag);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.75rem;
+        }
+
+        .section-count {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .new-arrivals-scroll {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 6px;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .new-arrivals-scroll::-webkit-scrollbar {
+            height: 3px;
+        }
+
+        .new-arrivals-scroll::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+
+        .new-card {
+            flex: 0 0 120px;
+            scroll-snap-align: start;
+            background: var(--bg-card);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .new-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .new-card img {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+        }
+
+        .new-card .new-badge {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            background: var(--new-tag);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            font-weight: 500;
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            padding: 0 24px 12px;
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stats-text {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .stats-text strong {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        /* Masonry Grid */
+        .gallery {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 24px 60px;
+            columns: 4;
+            column-gap: 14px;
+        }
+
+        @media (max-width: 1200px) {
+            .gallery { columns: 3; }
+        }
+
+        @media (max-width: 900px) {
+            .gallery { columns: 2; column-gap: 10px; }
+        }
+
+        @media (max-width: 500px) {
+            .gallery { columns: 2; column-gap: 8px; }
+            .category-bar, .stats-bar, .new-arrivals { padding-left: 14px; padding-right: 14px; }
+            .header { padding: 0 14px; }
+            .announcement { padding: 10px 14px; font-size: 0.8rem; }
+            .new-card { flex: 0 0 100px; }
+            .category-item { padding: 6px 12px; font-size: 0.8rem; }
+        }
+
+        /* Image Card */
+        .card {
+            break-inside: avoid;
+            margin-bottom: 14px;
+            background: var(--bg-card);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        @media (max-width: 500px) {
+            .card { margin-bottom: 8px; border-radius: 8px; }
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .card img {
+            width: 100%;
+            display: block;
+            transition: transform 0.4s ease;
+        }
+
+        .card:hover img {
+            transform: scale(1.02);
+        }
+
+        .card-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 32px 10px 10px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.6));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .card:hover .card-overlay {
+            opacity: 1;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 6px;
+            justify-content: flex-end;
+        }
+
+        .card-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.95);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .card-btn:hover {
+            transform: scale(1.1);
+            background: white;
+        }
+
+        .card-btn svg {
+            width: 14px;
+            height: 14px;
+            stroke: var(--text-primary);
+        }
+
+        /* Badges */
+        .card-badges {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            right: 6px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+
+        .badge {
+            padding: 3px 8px;
+            border-radius: 50px;
+            font-size: 0.65rem;
+            font-weight: 500;
+            backdrop-filter: blur(10px);
+        }
+
+        .badge-top {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .badge-new {
+            background: var(--new-tag);
+            color: white;
+        }
+
+        .badge-sold {
+            background: rgba(0,0,0,0.75);
+            color: white;
+        }
+
+        /* Lightbox */
+        .lightbox {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .lightbox.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .lightbox-close:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .lightbox-close svg {
+            width: 20px;
+            height: 20px;
+            stroke: white;
+        }
+
+        .lightbox-content {
+            max-width: 90%;
+            max-height: 90%;
+            position: relative;
+        }
+
+        .lightbox-content img {
+            max-width: 100%;
+            max-height: 78vh;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .lightbox-actions {
+            position: absolute;
+            bottom: -50px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+        }
+
+        .lightbox-btn {
+            padding: 10px 18px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 50px;
+            color: white;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .lightbox-btn:hover {
+            background: rgba(255,255,255,0.25);
+        }
+
+        .lightbox-btn svg {
+            width: 14px;
+            height: 14px;
+            stroke: currentColor;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 50px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state svg {
+            width: 56px;
+            height: 56px;
+            stroke: var(--border);
+            margin-bottom: 14px;
+        }
+
+        .empty-state h3 {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 50px 20px;
+        }
+
+        .loading-spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--text-primary);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            z-index: 2000;
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Announcement -->
+    <div class="announcement" id="announcement">
+        <div class="announcement-inner">
+            <span class="announcement-icon">📢</span>
+            <span class="announcement-text" id="announcementText"></span>
+        </div>
+    </div>
+
+    <header class="header">
+        <div class="header-inner">
+            <div class="logo">商品<span>图库</span></div>
+        </div>
+    </header>
+
+    <nav class="category-bar">
+        <ul class="category-list" id="categoryList">
+            <li class="category-item active" data-category="all">全部</li>
+        </ul>
+    </nav>
+
+    <!-- New Arrivals Section -->
+    <section class="new-arrivals" id="newArrivals">
+        <div class="section-header">
+            <div class="section-title">
+                <span class="icon">🔥</span>
+                最近上新
+            </div>
+            <span class="section-count" id="newCount">0 件新品</span>
+        </div>
+        <div class="new-arrivals-scroll" id="newArrivalsScroll"></div>
+    </section>
+
+    <div class="stats-bar">
+        <span class="stats-text">共 <strong id="totalCount">0</strong> 件商品</span>
+    </div>
+
+    <main class="gallery" id="gallery">
+        <div class="loading">
+            <div class="loading-spinner"></div>
+            <p>加载中...</p>
+        </div>
+    </main>
+
+    <!-- Lightbox -->
+    <div class="lightbox" id="lightbox">
+        <button class="lightbox-close" onclick="closeLightbox()">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+        </button>
+        <div class="lightbox-content">
+            <img id="lightboxImg" src="" alt="">
+            <div class="lightbox-actions">
+                <button class="lightbox-btn" onclick="downloadImage()">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                    </svg>
+                    下载
+                </button>
+                <button class="lightbox-btn" onclick="shareImage()">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                        <path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/>
+                    </svg>
+                    分享
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const CONFIG = { cosBaseUrl: '', dataFile: 'data.json' };
+        let allImages = [];
+        let currentCategory = 'all';
+        let currentImage = null;
+        let settings = { newDays: 3, announcement: '' };
+
+        document.addEventListener('DOMContentLoaded', init);
+
+        async function init() {
+            const savedConfig = localStorage.getItem('imageShelfConfig');
+            if (savedConfig) {
+                const config = JSON.parse(savedConfig);
+                CONFIG.cosBaseUrl = config.cosBaseUrl || '';
+            }
+            if (!CONFIG.cosBaseUrl) {
+                showEmptyState('请先在后台配置COS地址');
+                return;
+            }
+            await loadData();
+        }
+
+        async function loadData() {
+            try {
+                const response = await fetch(`${CONFIG.cosBaseUrl}/${CONFIG.dataFile}?t=${Date.now()}`);
+                if (!response.ok) throw new Error('数据加载失败');
+                
+                const data = await response.json();
+                allImages = data.images.filter(img => img.status === 'active');
+                settings = data.settings || { newDays: 3, announcement: '' };
+                
+                if (settings.announcement && settings.announcement.trim()) {
+                    document.getElementById('announcementText').textContent = settings.announcement;
+                    document.getElementById('announcement').classList.add('show');
+                }
+
+                renderCategories(data.categories || []);
+                renderNewArrivals();
+                renderGallery();
+                updateStats();
+            } catch (error) {
+                console.error('加载数据失败:', error);
+                showEmptyState('暂无商品');
+            }
+        }
+
+        function renderCategories(categories) {
+            const list = document.getElementById('categoryList');
+            list.innerHTML = '<li class="category-item active" data-category="all">全部</li>';
+            categories.forEach(cat => {
+                const li = document.createElement('li');
+                li.className = 'category-item';
+                li.dataset.category = cat.id;
+                li.textContent = cat.name;
+                li.onclick = () => filterByCategory(cat.id);
+                list.appendChild(li);
+            });
+            list.querySelector('[data-category="all"]').onclick = () => filterByCategory('all');
+        }
+
+        function filterByCategory(category) {
+            currentCategory = category;
+            document.querySelectorAll('.category-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.category === category);
+            });
+            renderGallery();
+            updateStats();
+        }
+
+        function renderNewArrivals() {
+            const container = document.getElementById('newArrivalsScroll');
+            const section = document.getElementById('newArrivals');
+            
+            const now = new Date();
+            const newDays = settings.newDays || 3;
+            const cutoff = new Date(now.getTime() - newDays * 24 * 60 * 60 * 1000);
+
+            const newImages = allImages.filter(img => new Date(img.createdAt) >= cutoff)
+                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+            if (newImages.length === 0) {
+                section.classList.remove('show');
+                return;
+            }
+
+            section.classList.add('show');
+            document.getElementById('newCount').textContent = `${newImages.length} 件新品`;
+
+            container.innerHTML = newImages.map(img => `
+                <div class="new-card" onclick="openLightbox('${img.url}')">
+                    <img src="${img.url}" alt="${img.name || ''}" loading="lazy">
+                    <span class="new-badge">NEW</span>
+                </div>
+            `).join('');
+        }
+
+        function renderGallery() {
+            const gallery = document.getElementById('gallery');
+            let filtered = currentCategory === 'all' ? allImages : allImages.filter(img => img.category === currentCategory);
+
+            if (filtered.length === 0) {
+                showEmptyState('该分类暂无商品');
+                return;
+            }
+
+            // 排序：置顶优先，然后按创建时间倒序
+            filtered.sort((a, b) => {
+                if (a.pinned && !b.pinned) return -1;
+                if (!a.pinned && b.pinned) return 1;
+                return new Date(b.createdAt) - new Date(a.createdAt);
+            });
+
+            const now = new Date();
+            const newDays = settings.newDays || 3;
+            const cutoff = new Date(now.getTime() - newDays * 24 * 60 * 60 * 1000);
+
+            gallery.innerHTML = filtered.map(img => {
+                const isNew = new Date(img.createdAt) >= cutoff;
+                return `
+                    <div class="card" onclick="openLightbox('${img.url}')">
+                        <img src="${img.url}" alt="${img.name || ''}" loading="lazy">
+                        <div class="card-badges">
+                            <div>
+                                ${img.pinned ? '<span class="badge badge-top">置顶</span>' : ''}
+                                ${isNew && !img.pinned ? '<span class="badge badge-new">NEW</span>' : ''}
+                            </div>
+                            ${img.sold ? '<span class="badge badge-sold">已售</span>' : ''}
+                        </div>
+                        <div class="card-overlay">
+                            <div class="card-actions">
+                                <button class="card-btn" onclick="event.stopPropagation(); downloadImageDirect('${img.url}')" title="下载">
+                                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                                    </svg>
+                                </button>
+                                <button class="card-btn" onclick="event.stopPropagation(); shareImageDirect('${img.url}')" title="分享">
+                                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                                        <path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function showEmptyState(message) {
+            document.getElementById('gallery').innerHTML = `
+                <div class="empty-state" style="column-span: all;">
+                    <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                        <path d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/>
+                    </svg>
+                    <h3>${message}</h3>
+                    <p>请稍后再来看看</p>
+                </div>
+            `;
+        }
+
+        function updateStats() {
+            const filtered = currentCategory === 'all' ? allImages : allImages.filter(img => img.category === currentCategory);
+            document.getElementById('totalCount').textContent = filtered.length;
+        }
+
+        function openLightbox(url) {
+            currentImage = url;
+            document.getElementById('lightboxImg').src = url;
+            document.getElementById('lightbox').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.remove('active');
+            document.body.style.overflow = '';
+            currentImage = null;
+        }
+
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeLightbox(); });
+        document.getElementById('lightbox').addEventListener('click', (e) => { if (e.target.id === 'lightbox') closeLightbox(); });
+
+        function downloadImage() { if (currentImage) downloadImageDirect(currentImage); }
+
+        function downloadImageDirect(url) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = url.split('/').pop();
+            a.target = '_blank';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showToast('开始下载...');
+        }
+
+        function shareImage() { if (currentImage) shareImageDirect(currentImage); }
+
+        async function shareImageDirect(url) {
+            if (navigator.share) {
+                try { await navigator.share({ title: '商品图片', url: url }); } 
+                catch (e) { copyToClipboard(url); }
+            } else { copyToClipboard(url); }
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => showToast('链接已复制')).catch(() => showToast('复制失败'));
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+    </script>
+</body>
+</html>
